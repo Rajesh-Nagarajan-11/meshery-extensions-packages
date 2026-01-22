@@ -190,32 +190,48 @@ jobs:
           message: ":x: Failed to sync test results to qa.meshery.io repo."
       #------------------------------------------
 
-
-  test-status:
-    name: Test Results Notification
-    runs-on: ubuntu-24.04
-    needs: tests
-    if: always()
-    steps:
-
       #------------------------------------------
       - name: comment success
-        if: ${{ inputs.pr_number != '' && needs.tests.result == 'success' }}
+        if: success()
         uses: ./.github/actions/cloud-comment
         with:
           message: ":white_check_mark: All Layer5 Cloud Server tests completed successfully."
       - name: comment failure
-        if: ${{ inputs.pr_number != '' && needs.tests.result == 'failure' }}
+        if: failure()
         uses: ./.github/actions/cloud-comment
         with:
           message: ":x: Layer5 Cloud Server tests completed with failures."
-
       #------------------------------------------
 
-      - name: Check test results
-        run: |
-          if [ "${{ needs.tests.result }}" == "failure" ]; then
-            echo "Tests failed"
-            exit 1
-          fi
-          echo "All tests passed"
+
+
+
+
+  # test-status:
+  #   name: Test Results Notification
+  #   runs-on: ubuntu-24.04
+  #   needs: tests
+  #   if: always()
+  #   steps:
+
+  #     #------------------------------------------
+  #     - name: comment success
+  #       if: ${{ inputs.pr_number != '' && needs.tests.result == 'success' }}
+  #       uses: ./.github/actions/cloud-comment
+  #       with:
+  #         message: ":white_check_mark: All Layer5 Cloud Server tests completed successfully."
+  #     - name: comment failure
+  #       if: ${{ inputs.pr_number != '' && needs.tests.result == 'failure' }}
+  #       uses: ./.github/actions/cloud-comment
+  #       with:
+  #         message: ":x: Layer5 Cloud Server tests completed with failures."
+
+  #     #------------------------------------------
+
+  #     - name: Check test results
+  #       run: |
+  #         if [ "${{ needs.tests.result }}" == "failure" ]; then
+  #           echo "Tests failed"
+  #           exit 1
+  #         fi
+  #         echo "All tests passed"
