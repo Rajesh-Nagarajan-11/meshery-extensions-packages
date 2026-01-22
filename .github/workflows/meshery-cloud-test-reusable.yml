@@ -1,44 +1,43 @@
-name: Layer5 Cloud Tests Reusable
+name: Layer5 Cloud Tests
+
 on:
   workflow_call:
     inputs:
       pr_commit_sha:
+        description: "Git commit SHA to checkout for testing"
         required: true
         type: string
       pr_number:
-        required: true
+        description: "PR number for comment updates (empty for push events)"
+        default: ""
+        required: false
         type: string
+      run_integration_tests:
+        description: "Whether to run integration tests"
+        default: false
+        required: false
+        type: boolean
     secrets:
-      PROVIDER_TOKEN:
-        required: true
-      GLOBAL_TOKEN:
-        required: true
-      NODE_VERSION:
-        required: true
       GH_ACCESS_TOKEN:
         required: true
-      LAYER5_CLOUD_USERNAME:
+
+  workflow_dispatch:
+    inputs:
+      pr_commit_sha:
+        description: "Git commit SHA to checkout for testing"
         required: true
-      LAYER5_CLOUD_PASSWORD:
-        required: true
-      LAYER5_CLOUD_TESTING_BOT_EMAIL:
-        required: true
-      LAYER5_CLOUD_TESTING_BOT_PASSWORD:
-        required: true
-      DOCKER_USERNAME: 
-        required: true
-      DOCKER_PASSWORD: 
-        required: true
-      MAIL_USERNAME: # <-- Added this secret
-        required: true
-      MAIL_PASSWORD: # <-- Added this secret
-        required: true
-      OCI_BASTION_HOST:
-        required: true
-      OCI_BASTION_USERNAME:
-        required: true
-      OCI_BASTION_KEY:
-        required: true
+        type: string
+      pr_number:
+        description: "PR number for comment updates (leave empty for master/qa runs)"
+        required: false
+        default: ""
+      run_integration_tests:
+        description: "Whether to run integration tests"
+        required: false
+        default: false
+        type: boolean
+
+
 jobs:
   comment-starting-point:
     runs-on: ubuntu-24.04
