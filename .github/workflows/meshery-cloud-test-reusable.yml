@@ -83,11 +83,13 @@ jobs:
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":heavy_check_mark: Cloned meshery-cloud repo."
       - name: comment failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":x: Failed to clone meshery-cloud repo."          
       #------------------------------------------
 
@@ -109,11 +111,13 @@ jobs:
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":heavy_check_mark: Setup Golang environment. Running unit tests..."
       - name: comment failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":x: Failed to setup Golang environment."          
       #------------------------------------------
 
@@ -127,11 +131,13 @@ jobs:
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":heavy_check_mark: Environment ready. Running integration tests..."
       - name: comment failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":heavy_check_mark: Unit tests passed. Running integration tests..."
       #------------------------------------------
 
@@ -145,11 +151,13 @@ jobs:
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":heavy_check_mark: Golang integration tests passed. Cloning qa.meshery.io repo..."
       - name: comment failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":x: Golang integration tests failed. Cloning qa.meshery.io repo..."
       #------------------------------------------
 
@@ -184,11 +192,13 @@ jobs:
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":heavy_check_mark: Sync'ed test results to qa.meshery.io repo."
       - name: comment failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":x: Failed to sync test results to qa.meshery.io repo."
       #------------------------------------------
 
@@ -197,11 +207,13 @@ jobs:
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":white_check_mark: All Layer5 Cloud Server tests completed successfully."
       - name: comment failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
+          id: cloud-tests
           message: ":x: Layer5 Cloud Server tests completed with failures."
       #------------------------------------------
 

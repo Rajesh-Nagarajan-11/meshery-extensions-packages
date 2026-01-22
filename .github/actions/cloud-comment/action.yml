@@ -12,6 +12,10 @@ inputs:
     description: 'Whether to recreate the comment'
     required: false
     default: 'false'
+  id:
+    description: 'Comment ID to use'
+    required: false
+    default: 'cloud-comment'
 runs:
   using: 'composite'
   steps:
@@ -21,7 +25,7 @@ runs:
         github-token: ${{ env.GITHUB_TOKEN }}
         repository: "layer5io/meshery-cloud"
         number: ${{ env.PR_NUMBER }}
-        id: meshery-cloud
+        id: ${{ inputs.id }}
         message: ${{ inputs.message }}
         append: ${{ inputs.append }}
         recreate: ${{ inputs.recreate }}
