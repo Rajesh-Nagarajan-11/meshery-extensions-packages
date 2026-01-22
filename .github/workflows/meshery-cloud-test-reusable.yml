@@ -37,24 +37,7 @@ on:
         default: false
         type: boolean
 
-
 jobs:
-  comment-starting-point:
-    runs-on: ubuntu-24.04
-    env:
-      GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
-      PR_NUMBER: ${{ inputs.pr_number }}
-    steps:
-      - name: comment starting point
-        uses: hasura/comment-progress@v2.3.0
-        with:
-          github-token: ${{ secrets.GH_ACCESS_TOKEN }}
-          repository: "layer5io/meshery-cloud"
-          number: ${{ inputs.pr_number }}
-          id: cloud-tests
-          message: "Starting Cloud Server tests ([takes approximately 8 min end-to-end](https://github.com/layer5labs/meshery-extensions-packages/actions/runs/${{ github.run_id }}))..."
-          recreate: true
-
   tests:
     name: Server Tests
     runs-on: ubuntu-24.04
@@ -68,14 +51,21 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             .github/actions/cloud-comment
-          sparse-checkout-cone-mode: false      
+          sparse-checkout-cone-mode: false
+
+      - name: comment success
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-tests
+          message: "Starting Cloud Server tests ([takes approximately 8 min end-to-end](https://github.com/layer5labs/meshery-extensions-packages/actions/runs/${{ github.run_id }}))..."
+          recreate: true
       
       #------------------------------------------          
-      - name: Checkout Cloud code
+      - name: Checkout Cloud code  (PR head)
         uses: actions/checkout@v6
         with:
           repository: layer5io/meshery-cloud
-          ref: ${{ inputs.pr_commit_sha }}
+          ref: refs/pull/${{ inputs.pr_number }}/head
           token: ${{ secrets.GH_ACCESS_TOKEN }}
           fetch-depth: 1
 
