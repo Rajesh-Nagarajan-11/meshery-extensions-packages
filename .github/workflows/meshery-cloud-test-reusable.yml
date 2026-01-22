@@ -52,7 +52,7 @@ jobs:
           repository: "layer5io/meshery-cloud"
           number: ${{ inputs.pr_number }}
           id: meshery-cloud
-          message: "Starting Cloud Server build ([takes approximately 10 min end-to-end](https://github.com/layer5labs/meshery-extensions-packages/actions/runs/${{ github.run_id }}))..."
+          message: "Starting Cloud Server tests ([takes approximately 8 min end-to-end](https://github.com/layer5labs/meshery-extensions-packages/actions/runs/${{ github.run_id }}))..."
           recreate: true
 
   tests:
@@ -61,16 +61,13 @@ jobs:
     steps:
 
       #------------------------------------------
-      - name: Comment progress - setup
-        if: ${{ inputs.pr_number != '' }}
-        uses: hasura/comment-progress@v2.3.0
+      - name: Checkout for composite action
+        uses: actions/checkout@v6
         with:
-          github-token: ${{ secrets.GH_ACCESS_TOKEN }}
-          repository: layer5io/meshery-cloud
-          number: ${{ inputs.pr_number }}
-          id: cloud-server-test
-          message: ":heavy_check_mark: Setting up test environment..."
-          append: true
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/actions/cloud-comment
+          sparse-checkout-cone-mode: false
       
       - name: Check out code
         uses: actions/checkout@v6
