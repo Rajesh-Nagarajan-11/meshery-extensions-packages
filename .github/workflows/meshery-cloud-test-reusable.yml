@@ -58,6 +58,7 @@ jobs:
         with:
           id: cloud-tests
           message: "Starting Cloud Server tests ([takes approximately 8 min end-to-end](https://github.com/layer5labs/meshery-extensions-packages/actions/runs/${{ github.run_id }}))..."
+          append: false
           recreate: true
       
       #------------------------------------------          
@@ -128,7 +129,7 @@ jobs:
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
-          message: ":heavy_check_mark: Unit tests passed. Running integration tests..."
+          message: ":x: Unit tests failed. Running integration tests..."
       #------------------------------------------
 
       #------------------------------------------
@@ -204,7 +205,7 @@ jobs:
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
-          message: ":x: Layer5 Cloud Server tests completed with failures."
+          message: ":x: Layer5 Cloud Server tests completed with failures. See [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})."
       #------------------------------------------
 
 
