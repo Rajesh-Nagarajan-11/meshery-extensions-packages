@@ -125,7 +125,7 @@ jobs:
       #------------------------------------------
       - name: Run unit tests
         continue-on-error: true
-        run: make server-unit-tests
+        run: make env-init server-tests-unit
 
       - name: comment success
         if: success()
@@ -145,7 +145,7 @@ jobs:
       - name: Run integration tests
         continue-on-error: true
         if: ${{ inputs.run_integration_tests == true }}
-        run: make ENVIRONMENT=staging integration-tests
+        run: make ENVIRONMENT=staging server-tests-integration
 
       - name: comment success
         if: success()
