@@ -125,7 +125,7 @@ jobs:
       #------------------------------------------
       - name: Run unit tests
         continue-on-error: true
-        run: make env-init server-tests-unit
+        run: make server-tests-unit
 
       - name: comment success
         if: success()
