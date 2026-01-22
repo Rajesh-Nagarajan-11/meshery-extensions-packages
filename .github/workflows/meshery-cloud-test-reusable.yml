@@ -105,7 +105,7 @@ jobs:
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
-          message: ":heavy_check_mark: Setup Golang environment. Running unit tests..."
+          message: ":heavy_check_mark: Setup Golang environment. Running unit tests... (takes approximately 3 min)"
       - name: comment failure
         if: failure()
         uses: ./.github/actions/cloud-comment
@@ -134,6 +134,7 @@ jobs:
           id: cloud-tests
           message: ":x: Unit tests failed. Running integration tests..."
       #------------------------------------------
+
 
       #------------------------------------------
       - name: Run integration tests
