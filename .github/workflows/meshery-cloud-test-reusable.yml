@@ -1,43 +1,44 @@
-name: Layer5 Cloud Tests
-
+name: Layer5 Cloud Tests Reusable
 on:
   workflow_call:
     inputs:
-      checkout_ref:
-        description: "Git ref to checkout for testing"
+      pr_commit_sha:
         required: true
         type: string
       pr_number:
-        description: "PR number for comment updates (empty for push events)"
-        default: ""
-        required: false
+        required: true
         type: string
-      run_integration_tests:
-        description: "Whether to run integration tests"
-        default: false
-        required: false
-        type: boolean
     secrets:
+      PROVIDER_TOKEN:
+        required: true
+      GLOBAL_TOKEN:
+        required: true
+      NODE_VERSION:
+        required: true
       GH_ACCESS_TOKEN:
         required: true
-
-  workflow_dispatch:
-    inputs:
-      checkout_ref:
-        description: "Git ref to checkout for testing"
+      LAYER5_CLOUD_USERNAME:
         required: true
-        type: string
-      pr_number:
-        description: "PR number for comment updates (leave empty for master/qa runs)"
-        required: false
-        default: ""
-      run_integration_tests:
-        description: "Whether to run integration tests"
-        required: false
-        default: false
-        type: boolean
-
-
+      LAYER5_CLOUD_PASSWORD:
+        required: true
+      LAYER5_CLOUD_TESTING_BOT_EMAIL:
+        required: true
+      LAYER5_CLOUD_TESTING_BOT_PASSWORD:
+        required: true
+      DOCKER_USERNAME: 
+        required: true
+      DOCKER_PASSWORD: 
+        required: true
+      MAIL_USERNAME: # <-- Added this secret
+        required: true
+      MAIL_PASSWORD: # <-- Added this secret
+        required: true
+      OCI_BASTION_HOST:
+        required: true
+      OCI_BASTION_USERNAME:
+        required: true
+      OCI_BASTION_KEY:
+        required: true
 jobs:
   comment-starting-point:
     runs-on: ubuntu-24.04
@@ -52,7 +53,7 @@ jobs:
           repository: "layer5io/meshery-cloud"
           number: ${{ inputs.pr_number }}
           id: meshery-cloud
-          message: "Starting Cloud Server tests ([takes approximately 10 min end-to-end](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}))..."
+          message: "Starting Cloud Server build ([takes approximately 10 min end-to-end](https://github.com/layer5labs/meshery-extensions-packages/actions/runs/${{ github.run_id }}))..."
           recreate: true
 
   tests:
