@@ -46,7 +46,7 @@ jobs:
       PR_NUMBER: ${{ inputs.pr_number }}
     steps:
       - name: Checkout for composite action
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           sparse-checkout: |
@@ -63,12 +63,13 @@ jobs:
       
       #------------------------------------------          
       - name: Checkout Cloud code  (PR head)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           repository: layer5io/meshery-cloud
           ref: refs/pull/${{ inputs.pr_number }}/head
           token: ${{ secrets.GH_ACCESS_TOKEN }}
           fetch-depth: 1
+          path: meshery-cloud
 
       - name: comment success
         if: success()
@@ -94,6 +95,7 @@ jobs:
           cache: true
 
       - name: Download dependencies
+        working-directory: meshery-cloud
         run: |
           go mod download
           go mod verify
@@ -116,6 +118,7 @@ jobs:
       #------------------------------------------
       - name: Run unit tests
         continue-on-error: true
+        working-directory: meshery-cloud
         run: make server-tests-unit
 
       - name: comment success
@@ -136,6 +139,7 @@ jobs:
       - name: Run integration tests
         continue-on-error: true
         if: ${{ inputs.run_integration_tests == true }}
+        working-directory: meshery-cloud
         run: make ENVIRONMENT=staging server-tests-integration
 
       - name: comment success
