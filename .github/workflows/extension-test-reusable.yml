@@ -174,7 +174,7 @@ jobs:
         id: test_reports
         working-directory: meshery-extensions
         run: |
-          REPORT="test-results/test-report.md"
+          REPORT="tests/test-results/test-report.md"
 
           if [ -f "$REPORT" ]; then
             cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
@@ -244,8 +244,8 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            meshery-extensions/test-results
-            meshery-extensions/playwright-report
+            meshery-extensions/tests/test-results
+            meshery-extensions/tests/playwright-report
           retention-days: 30
 
       - name: Comment Test failure
