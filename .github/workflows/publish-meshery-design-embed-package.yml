@@ -61,4 +61,5 @@ jobs:
           npm publish --provenance --access public --verbose
         env:
           NODE_AUTH_TOKEN: ''  # Explicitly empty for install
+        working-directory: meshery-design-embed
 
