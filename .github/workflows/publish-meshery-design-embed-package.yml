@@ -44,7 +44,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "24.x"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
           scope: "@layer5"
           cache: npm
@@ -56,14 +56,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set package version
-        run: npm version "${{ inputs.version }}" --no-git-tag-version
+      - name: "Set Package Version"
+        uses: reedyuk/npm-version@1.1.1
+        with:
+          version: ${{ inputs.version }}
+
+      # - name: Set package version
+      #   run: npm version "${{ inputs.version }}" --no-git-tag-version
 
       - name: Bundle package
         run: npm run build
 
       - name: Publish package to npm with OIDC
         run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ''  # Explicitly empty for OIDC
 
       - name: Commit published version bump
         run: |
