@@ -29,6 +29,10 @@ jobs:
         with:
           fetch-depth: 1
           ref: ${{ github.ref_name }}
+          sparse-checkout: |
+            meshery-design-embed
+            .github
+          sparse-checkout-cone-mode: false
 
       - name: Ensure workflow runs from the default branch
         run: |
