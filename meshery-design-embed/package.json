@@ -17,6 +17,11 @@
     "publishConfig": {
         "access": "public"
     },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/layer5labs/meshery-extensions-packages",
+        "directory": "meshery-design-embed"
+    },
     "scripts": {
         "dev": "vite",
         "build": "vite build",
