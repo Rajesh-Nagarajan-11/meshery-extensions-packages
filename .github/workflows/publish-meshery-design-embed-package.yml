@@ -50,7 +50,7 @@ jobs:
           scope: "@layer5"
 
       - name: "Set Package Version"
-        uses: reedyuk/npm-version@1.1.1
+        uses: reedyuk/npm-version@1.2.2
         with:
           version: ${{ inputs.version }}
           package: "meshery-design-embed/"
@@ -63,4 +63,3 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ''  # Explicitly empty for install
         working-directory: meshery-design-embed
-
