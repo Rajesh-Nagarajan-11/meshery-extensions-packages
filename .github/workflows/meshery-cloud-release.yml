@@ -109,7 +109,7 @@ jobs:
           make ui-lint-fix
           make cloud-lint-fix
       - name: Commit Changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_user_name: l5io
           commit_user_email: l5io@layer5.io
