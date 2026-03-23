@@ -188,7 +188,7 @@ jobs:
       - name: Build and Push
         uses: docker/build-push-action@v5
         with:
-        #   context: "{{defaultContext}}:install/docker-extension"
+          context: meshery-cloud
           push: true
           build-args: |
             ENVIRONMENT="stg"
