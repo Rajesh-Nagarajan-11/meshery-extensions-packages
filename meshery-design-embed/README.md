@@ -66,3 +66,7 @@ Certain aspects of Meshery Designs and their visualization are not currently sup
 1. Function: Viewing comments 
 
 Learn more about [embedding Meshery Designs](https://docs.layer5.io/meshmap/designer/embedding-designs/).
+
+## Publishing New Versions
+
+Dispatch https://github.com/layer5labs/meshery-extensions-packages/actions/workflows/publish-meshery-design-embed-package.yml

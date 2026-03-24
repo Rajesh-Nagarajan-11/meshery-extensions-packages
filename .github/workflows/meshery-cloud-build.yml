@@ -39,7 +39,7 @@ env:
 
 jobs:
   print-inputs:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - run: |
           echo "Dispatched GIT_VERSION: ${{github.event.inputs.release-ver}}"
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Meshery Cloud code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: layer5io/meshery-cloud
           fetch-depth: 1
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Meshery Cloud code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
             repository: layer5io/meshery-cloud
             fetch-depth: 1
