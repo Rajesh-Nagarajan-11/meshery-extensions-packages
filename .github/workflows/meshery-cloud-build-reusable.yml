@@ -119,6 +119,51 @@ jobs:
         if: steps.go-test.outcome == 'failure'
         run: exit 1
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ secrets.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: meshery-cloud/ui/package-lock.json
+      - name: comment success
+        if: success()
+        uses: ./.github/actions/cloud-comment
+        with:
+          message: ":heavy_check_mark: Setup Node.js for Cloud UI validation. Installing dependencies..."
+      - name: comment failure
+        if: failure()
+        uses: ./.github/actions/cloud-comment
+        with:
+          message: ":x: Failed to setup Node.js for Cloud UI validation."
+
+      - name: Install Cloud UI dependencies
+        working-directory: meshery-cloud
+        run: make ui-setup
+      - name: comment success
+        if: success()
+        uses: ./.github/actions/cloud-comment
+        with:
+          message: ":heavy_check_mark: Installed Cloud UI dependencies. Running Cloud UI tests..."
+      - name: comment failure
+        if: failure()
+        uses: ./.github/actions/cloud-comment
+        with:
+          message: ":x: Failed to install Cloud UI dependencies."
+
+      - name: Run Cloud UI tests
+        working-directory: meshery-cloud
+        run: make cloud-ui-tests
+      - name: comment success
+        if: success()
+        uses: ./.github/actions/cloud-comment
+        with:
+          message: ":heavy_check_mark: Cloud UI tests passed. Proceeding with staging build setup."
+      - name: comment failure
+        if: failure()
+        uses: ./.github/actions/cloud-comment
+        with:
+          message: ":x: Cloud UI tests failed. Aborting staging build."
+
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
       - name: comment success
