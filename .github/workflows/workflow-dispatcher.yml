@@ -8,6 +8,7 @@ jobs:
     with:
       checkout_ref: ${{ github.event.client_payload.branch_name }}
       pr_number: ${{ github.event.client_payload.pr_number }}
+      head_sha: ${{ github.event.client_payload.head_sha }}
     secrets:
       PROVIDER_TOKEN: ${{ secrets.PROVIDER_TOKEN }}
       GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
