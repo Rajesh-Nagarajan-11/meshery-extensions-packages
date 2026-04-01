@@ -34,10 +34,6 @@ on:
         default: ""
         required: false
         type: string
-      target_repo:
-        default: "layer5labs/meshery-extensions"
-        required: false
-        type: string
     secrets:
       PROVIDER_TOKEN:
         required: true
@@ -99,7 +95,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_ACCESS_TOKEN }}
           script: |
-            const [owner, repo] = '${{ inputs.target_repo }}'.split('/');
+            const [owner, repo] = 'layer5labs/meshery-extensions'.split('/');
             await github.rest.repos.createCommitStatus({
               owner,
               repo,
@@ -299,7 +295,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_ACCESS_TOKEN }}
           script: |
-            const [owner, repo] = '${{ inputs.target_repo }}'.split('/');
+            const [owner, repo] = 'layer5labs/meshery-extensions'.split('/');
             const outcome = '${{ steps.run_tests.outcome }}';
             const state = outcome === 'success' ? 'success' : 'failure';
             await github.rest.repos.createCommitStatus({
