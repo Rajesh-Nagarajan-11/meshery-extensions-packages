@@ -297,13 +297,15 @@ jobs:
           script: |
             const [owner, repo] = 'layer5labs/meshery-extensions'.split('/');
             const outcome = '${{ steps.run_tests.outcome }}';
-            const state = outcome === 'success' ? 'success' : 'failure';
+            const stateMap = { success: 'success', failure: 'failure', cancelled: 'error', skipped: 'error' };
+            const state = stateMap[outcome] || 'error';
+            const descMap = { success: 'All tests passed', failure: 'One or more tests failed', cancelled: 'Run was cancelled', skipped: 'Tests were skipped' };
             await github.rest.repos.createCommitStatus({
               owner,
               repo,
               sha: '${{ inputs.head_sha }}',
               state,
               context: 'Meshery Extension E2E Tests',
-              description: state === 'success' ? 'All tests passed' : 'One or more tests failed',
+              description: descMap[outcome] || 'Unexpected test outcome',
               target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             });
