@@ -37,8 +37,7 @@ jobs:
     uses: ./.github/workflows/meshery-cloud-test-reusable.yml
     secrets:
       GH_ACCESS_TOKEN: ${{secrets.GH_ACCESS_TOKEN}}
-      NODE_VERSION: ${{secrets.NODE_VERSION}}
-
     with:
       pr_commit_sha: ${{inputs.pr_commit_sha}}
       pr_number: ${{inputs.pr_number}}
+      node_version: ${{vars.NODE_VERSION}}
