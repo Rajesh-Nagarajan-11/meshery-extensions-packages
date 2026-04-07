@@ -40,4 +40,4 @@ jobs:
     with:
       pr_commit_sha: ${{inputs.pr_commit_sha}}
       pr_number: ${{inputs.pr_number}}
-      node_version: ${{secrets.NODE_VERSION}}
+      node_version: ${{vars.NODE_VERSION}}

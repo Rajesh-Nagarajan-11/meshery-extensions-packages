@@ -177,7 +177,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: server-test-results
-          path: allure-results/
+          path: meshery-cloud/allure-results/
           if-no-files-found: ignore
           retention-days: 14
       #------------------------------------------
@@ -194,7 +194,7 @@ jobs:
       - name: Sync results with QA
         if: ${{ inputs.pr_number == '' && steps.unit-tests.outcome == 'success' && (steps.integration-tests.outcome == 'success' || steps.integration-tests.outcome == 'skipped') }}
         working-directory: qa
-        run: make remote-provider-results-sync REMOTE_PROVIDER_RESULTS_PATH=../allure-results/
+        run: make remote-provider-results-sync REMOTE_PROVIDER_RESULTS_PATH=../meshery-cloud/allure-results/
 
       - name: Commit & push results to QA
         if: ${{ inputs.pr_number == '' && steps.unit-tests.outcome == 'success' && (steps.integration-tests.outcome == 'success' || steps.integration-tests.outcome == 'skipped') }}
@@ -210,13 +210,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
 
       - name: Comment QA sync success
-        if: ${{ success() && inputs.pr_number == '' && steps.unit-tests.outcome == 'success' }}
+        if: ${{ success() && inputs.pr_number == '' && steps.unit-tests.outcome == 'success' && (steps.integration-tests.outcome == 'success' || steps.integration-tests.outcome == 'skipped') }}
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: ":heavy_check_mark: Sync'ed test results to qa.meshery.io repo."
       - name: Comment QA sync failure
-        if: ${{ failure() && inputs.pr_number == '' }}
+        if: ${{ failure() && inputs.pr_number == '' && steps.unit-tests.outcome == 'success' && (steps.integration-tests.outcome == 'success' || steps.integration-tests.outcome == 'skipped') }}
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
