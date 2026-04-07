@@ -17,10 +17,12 @@ on:
         default: false
         required: false
         type: boolean
+      node_version:
+        description: "Node.js version for UI tests"
+        required: true
+        type: string
     secrets:
       GH_ACCESS_TOKEN:
-        required: true
-      NODE_VERSION:
         required: true
 
   workflow_dispatch:
@@ -38,11 +40,16 @@ on:
         required: false
         default: false
         type: boolean
+      node_version:
+        description: "Node.js version for UI tests"
+        required: true
+        type: string
 
 jobs:
   server-tests:
     name: Server Tests
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     env:
       GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
       PR_NUMBER: ${{ inputs.pr_number }}
@@ -55,50 +62,38 @@ jobs:
             .github/actions/cloud-comment
           sparse-checkout-cone-mode: false
 
-      - name: comment success
+      - name: Comment starting
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: "Starting Cloud Server tests ([takes approximately 8 min end-to-end](https://github.com/layer5labs/meshery-extensions-packages/actions/runs/${{ github.run_id }}))..."
           append: false
           recreate: true
-      
-      #------------------------------------------          
-      - name: Checkout Cloud code (PR head)
-        if: ${{ inputs.pr_number != '' }}
+
+      #------------------------------------------
+      - name: Checkout Cloud code
         uses: actions/checkout@v6
         with:
           repository: layer5io/meshery-cloud
-          ref: refs/pull/${{ inputs.pr_number }}/head
+          ref: ${{ inputs.pr_number != '' && format('refs/pull/{0}/head', inputs.pr_number) || inputs.pr_commit_sha }}
           token: ${{ secrets.GH_ACCESS_TOKEN }}
           fetch-depth: 1
           path: meshery-cloud
 
-      - name: Checkout Cloud code (commit SHA)
-        if: ${{ inputs.pr_number == '' }}
-        uses: actions/checkout@v6
-        with:
-          repository: layer5io/meshery-cloud
-          ref: ${{ inputs.pr_commit_sha }}
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
-          fetch-depth: 1
-          path: meshery-cloud
-
-      - name: comment success
+      - name: Comment checkout success
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: ":heavy_check_mark: Checked out meshery-cloud repo."
-      - name: comment failure
+      - name: Comment checkout failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
-          message: ":x: Failed to clone meshery-cloud repo."          
+          message: ":x: Failed to clone meshery-cloud repo."
       #------------------------------------------
 
-          
       #------------------------------------------
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -113,80 +108,97 @@ jobs:
           go mod download
           go mod verify
 
-      - name: comment success
+      - name: Comment Go setup success
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: ":heavy_check_mark: Setup Golang environment. Running unit tests... (takes approximately 3 min)"
-      - name: comment failure
+      - name: Comment Go setup failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
-          message: ":x: Failed to setup Golang environment."          
+          message: ":x: Failed to setup Golang environment."
       #------------------------------------------
-
 
       #------------------------------------------
       - name: Run unit tests
+        id: unit-tests
         continue-on-error: true
         working-directory: meshery-cloud
         run: make server-tests-unit
 
-      - name: comment success
-        if: success()
+      - name: Comment unit tests success
+        if: steps.unit-tests.outcome == 'success'
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
-          message: ":heavy_check_mark: Environment ready. Running integration tests..."
-      - name: comment failure
-        if: failure()
+          message: ":heavy_check_mark: Unit tests passed. Running integration tests..."
+      - name: Comment unit tests failure
+        if: steps.unit-tests.outcome == 'failure'
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: ":x: Unit tests failed. Running integration tests..."
       #------------------------------------------
 
-
       #------------------------------------------
       - name: Run integration tests
+        id: integration-tests
         continue-on-error: true
-        # if: ${{ inputs.run_integration_tests == true }}
+        if: ${{ inputs.run_integration_tests }}
         working-directory: meshery-cloud
         run: make ENVIRONMENT=staging server-tests-integration
 
-      - name: comment success
-        if: success()
+      - name: Comment integration tests success
+        if: steps.integration-tests.outcome == 'success'
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
-          message: ":heavy_check_mark: Golang integration tests passed. Cloning qa.meshery.io repo..."
-      - name: comment failure
-        if: failure()
+          message: ":heavy_check_mark: Golang integration tests passed."
+      - name: Comment integration tests failure
+        if: steps.integration-tests.outcome == 'failure'
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
-          message: ":x: Golang integration tests failed. Cloning qa.meshery.io repo..."
+          message: ":x: Golang integration tests failed."
+      - name: Comment integration tests skipped
+        if: steps.integration-tests.outcome == 'skipped'
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-tests
+          message: ":fast_forward: Integration tests skipped (not requested)."
+      #------------------------------------------
+
+      #------------------------------------------
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-test-results
+          path: allure-results/
+          if-no-files-found: ignore
+          retention-days: 14
       #------------------------------------------
 
       #------------------------------------------
       - name: Checkout qa.meshery.io repo
+        if: ${{ inputs.pr_number == '' && steps.unit-tests.outcome == 'success' && (steps.integration-tests.outcome == 'success' || steps.integration-tests.outcome == 'skipped') }}
         uses: actions/checkout@v6
-        if: ${{ inputs.pr_number == '' }}
         with:
           repository: meshery/qa
           path: qa
           token: ${{ secrets.GH_ACCESS_TOKEN }}
-   
+
       - name: Sync results with QA
-        if: ${{ inputs.pr_number == '' }}
+        if: ${{ inputs.pr_number == '' && steps.unit-tests.outcome == 'success' && (steps.integration-tests.outcome == 'success' || steps.integration-tests.outcome == 'skipped') }}
         working-directory: qa
         run: make remote-provider-results-sync REMOTE_PROVIDER_RESULTS_PATH=../allure-results/
 
       - name: Commit & push results to QA
+        if: ${{ inputs.pr_number == '' && steps.unit-tests.outcome == 'success' && (steps.integration-tests.outcome == 'success' || steps.integration-tests.outcome == 'skipped') }}
         uses: stefanzweifel/git-auto-commit-action@v7
-        if: ${{ inputs.pr_number == '' }}
         with:
           commit_message: "[Extension] Sync Remote Provider Cloud Server Test Results - ${{ github.sha }}"
           commit_options: --signoff
@@ -197,68 +209,53 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
 
-      - name: comment success
-        if: success()
+      - name: Comment QA sync success
+        if: ${{ success() && inputs.pr_number == '' && steps.unit-tests.outcome == 'success' }}
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: ":heavy_check_mark: Sync'ed test results to qa.meshery.io repo."
-      - name: comment failure
-        if: failure()
+      - name: Comment QA sync failure
+        if: ${{ failure() && inputs.pr_number == '' }}
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: ":x: Failed to sync test results to qa.meshery.io repo."
+      - name: Comment QA sync skipped
+        if: ${{ inputs.pr_number == '' && (steps.unit-tests.outcome == 'failure' || steps.integration-tests.outcome == 'failure') }}
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-tests
+          message: ":warning: Skipped QA sync — test failures detected."
       #------------------------------------------
 
       #------------------------------------------
-      - name: comment success
-        if: success()
+      - name: Comment final success
+        if: ${{ steps.unit-tests.outcome == 'success' && (steps.integration-tests.outcome == 'success' || steps.integration-tests.outcome == 'skipped') }}
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: ":white_check_mark: All Layer5 Cloud Server tests completed successfully."
-      - name: comment failure
-        if: failure()
+      - name: Comment final failure
+        if: ${{ steps.unit-tests.outcome == 'failure' || steps.integration-tests.outcome == 'failure' }}
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-tests
           message: ":x: Layer5 Cloud Server tests completed with failures. See [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+
+      - name: Fail if any tests failed
+        if: ${{ steps.unit-tests.outcome == 'failure' || steps.integration-tests.outcome == 'failure' }}
+        run: |
+          echo "::error::Test failures detected"
+          [ "${{ steps.unit-tests.outcome }}" = "failure" ] && echo "  - Unit tests failed"
+          [ "${{ steps.integration-tests.outcome }}" = "failure" ] && echo "  - Integration tests failed"
+          exit 1
       #------------------------------------------
-
-
-  # test-status:
-  #   name: Test Results Notification
-  #   runs-on: ubuntu-24.04
-  #   needs: tests
-  #   if: always()
-  #   steps:
-
-  #     #------------------------------------------
-  #     - name: comment success
-  #       if: ${{ inputs.pr_number != '' && needs.tests.result == 'success' }}
-  #       uses: ./.github/actions/cloud-comment
-  #       with:
-  #         message: ":white_check_mark: All Layer5 Cloud Server tests completed successfully."
-  #     - name: comment failure
-  #       if: ${{ inputs.pr_number != '' && needs.tests.result == 'failure' }}
-  #       uses: ./.github/actions/cloud-comment
-  #       with:
-  #         message: ":x: Layer5 Cloud Server tests completed with failures."
-
-  #     #------------------------------------------
-
-  #     - name: Check test results
-  #       run: |
-  #         if [ "${{ needs.tests.result }}" == "failure" ]; then
-  #           echo "Tests failed"
-  #           exit 1
-  #         fi
-  #         echo "All tests passed"
 
   ui-tests:
     name: UI Tests
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     env:
       GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
       PR_NUMBER: ${{ inputs.pr_number }}
@@ -271,7 +268,7 @@ jobs:
             .github/actions/cloud-comment
           sparse-checkout-cone-mode: false
 
-      - name: comment start
+      - name: Comment starting
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-ui-tests
@@ -280,33 +277,22 @@ jobs:
           recreate: true
 
       #------------------------------------------
-      - name: Checkout Cloud code (PR head)
-        if: ${{ inputs.pr_number != '' }}
+      - name: Checkout Cloud code
         uses: actions/checkout@v6
         with:
           repository: layer5io/meshery-cloud
-          ref: refs/pull/${{ inputs.pr_number }}/head
+          ref: ${{ inputs.pr_number != '' && format('refs/pull/{0}/head', inputs.pr_number) || inputs.pr_commit_sha }}
           token: ${{ secrets.GH_ACCESS_TOKEN }}
           fetch-depth: 1
           path: meshery-cloud
 
-      - name: Checkout Cloud code (commit SHA)
-        if: ${{ inputs.pr_number == '' }}
-        uses: actions/checkout@v6
-        with:
-          repository: layer5io/meshery-cloud
-          ref: ${{ inputs.pr_commit_sha }}
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
-          fetch-depth: 1
-          path: meshery-cloud
-
-      - name: comment success
+      - name: Comment checkout success
         if: success()
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-ui-tests
           message: ":heavy_check_mark: Checked out meshery-cloud repo."
-      - name: comment failure
+      - name: Comment checkout failure
         if: failure()
         uses: ./.github/actions/cloud-comment
         with:
@@ -319,17 +305,17 @@ jobs:
         id: setup-node
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ secrets.NODE_VERSION }}
-          cache: 'npm'
+          node-version: ${{ inputs.node_version }}
+          cache: "npm"
           cache-dependency-path: meshery-cloud/ui/package-lock.json
 
-      - name: comment success
+      - name: Comment Node setup success
         if: steps.setup-node.outcome == 'success'
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-ui-tests
           message: ":heavy_check_mark: Setup Node.js. Installing dependencies..."
-      - name: comment failure
+      - name: Comment Node setup failure
         if: steps.setup-node.outcome == 'failure'
         uses: ./.github/actions/cloud-comment
         with:
@@ -343,13 +329,13 @@ jobs:
         working-directory: meshery-cloud
         run: make ui-setup
 
-      - name: comment success
+      - name: Comment deps success
         if: steps.install-deps.outcome == 'success'
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-ui-tests
           message: ":heavy_check_mark: Installed UI dependencies. Running UI tests..."
-      - name: comment failure
+      - name: Comment deps failure
         if: steps.install-deps.outcome == 'failure'
         uses: ./.github/actions/cloud-comment
         with:
@@ -359,17 +345,27 @@ jobs:
 
       #------------------------------------------
       - name: Run UI tests
+        id: ui-tests
         working-directory: meshery-cloud
         run: make ui-tests
 
-      - name: comment success
-        if: success()
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: meshery-cloud/ui/coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Comment UI tests success
+        if: steps.ui-tests.outcome == 'success'
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-ui-tests
           message: ":white_check_mark: All Cloud UI tests passed."
-      - name: comment failure
-        if: failure()
+      - name: Comment UI tests failure
+        if: steps.ui-tests.outcome == 'failure'
         uses: ./.github/actions/cloud-comment
         with:
           id: cloud-ui-tests
