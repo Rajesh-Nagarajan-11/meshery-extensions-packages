@@ -20,6 +20,8 @@ on:
     secrets:
       GH_ACCESS_TOKEN:
         required: true
+      NODE_VERSION:
+        required: true
 
   workflow_dispatch:
     inputs:
@@ -38,7 +40,7 @@ on:
         type: boolean
 
 jobs:
-  tests:
+  server-tests:
     name: Server Tests
     runs-on: ubuntu-24.04
     env:
@@ -225,9 +227,6 @@ jobs:
       #------------------------------------------
 
 
-
-
-
   # test-status:
   #   name: Test Results Notification
   #   runs-on: ubuntu-24.04
@@ -256,3 +255,123 @@ jobs:
   #           exit 1
   #         fi
   #         echo "All tests passed"
+
+  ui-tests:
+    name: UI Tests
+    runs-on: ubuntu-24.04
+    env:
+      GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+      PR_NUMBER: ${{ inputs.pr_number }}
+    steps:
+      - name: Checkout for composite action
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/actions/cloud-comment
+          sparse-checkout-cone-mode: false
+
+      - name: comment start
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: "Starting Cloud UI tests ([workflow run](https://github.com/layer5labs/meshery-extensions-packages/actions/runs/${{ github.run_id }}))..."
+          append: false
+          recreate: true
+
+      #------------------------------------------
+      - name: Checkout Cloud code (PR head)
+        if: ${{ inputs.pr_number != '' }}
+        uses: actions/checkout@v6
+        with:
+          repository: layer5io/meshery-cloud
+          ref: refs/pull/${{ inputs.pr_number }}/head
+          token: ${{ secrets.GH_ACCESS_TOKEN }}
+          fetch-depth: 1
+          path: meshery-cloud
+
+      - name: Checkout Cloud code (commit SHA)
+        if: ${{ inputs.pr_number == '' }}
+        uses: actions/checkout@v6
+        with:
+          repository: layer5io/meshery-cloud
+          ref: ${{ inputs.pr_commit_sha }}
+          token: ${{ secrets.GH_ACCESS_TOKEN }}
+          fetch-depth: 1
+          path: meshery-cloud
+
+      - name: comment success
+        if: success()
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: ":heavy_check_mark: Checked out meshery-cloud repo."
+      - name: comment failure
+        if: failure()
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: ":x: Failed to clone meshery-cloud repo."
+      #------------------------------------------
+
+      #------------------------------------------
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ secrets.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: meshery-cloud/ui/package-lock.json
+
+      - name: comment success
+        if: steps.setup-node.outcome == 'success'
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: ":heavy_check_mark: Setup Node.js. Installing dependencies..."
+      - name: comment failure
+        if: steps.setup-node.outcome == 'failure'
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: ":x: Failed to setup Node.js."
+      #------------------------------------------
+
+      #------------------------------------------
+      - name: Install UI dependencies
+        id: install-deps
+        working-directory: meshery-cloud
+        run: make ui-setup
+
+      - name: comment success
+        if: steps.install-deps.outcome == 'success'
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: ":heavy_check_mark: Installed UI dependencies. Running UI tests..."
+      - name: comment failure
+        if: steps.install-deps.outcome == 'failure'
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: ":x: Failed to install UI dependencies."
+      #------------------------------------------
+
+      #------------------------------------------
+      - name: Run UI tests
+        working-directory: meshery-cloud
+        run: make ui-tests
+
+      - name: comment success
+        if: success()
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: ":white_check_mark: All Cloud UI tests passed."
+      - name: comment failure
+        if: failure()
+        uses: ./.github/actions/cloud-comment
+        with:
+          id: cloud-ui-tests
+          message: ":x: Cloud UI tests failed. See [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+      #------------------------------------------
