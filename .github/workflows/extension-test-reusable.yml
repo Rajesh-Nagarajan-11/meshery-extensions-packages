@@ -30,6 +30,10 @@ on:
         default: "make test"
         required: false
         type: string
+      head_sha:
+        default: ""
+        required: false
+        type: string
     secrets:
       PROVIDER_TOKEN:
         required: true
@@ -67,6 +71,40 @@ jobs:
       pr_number: ${{ inputs.pr_number }}
       comment_id: extension-test
 
+  # Posts a PR comment and sets commit status when the build fails,
+  # preventing a silent "pending" status that never resolves.
+  comment-build-failure:
+    needs: build-meshery-extension
+    if: ${{ failure() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Comment build failure on PR
+        if: ${{ inputs.pr_number != '' }}
+        uses: hasura/comment-progress@v2.3.0
+        with:
+          github-token: ${{ secrets.GH_ACCESS_TOKEN }}
+          repository: layer5labs/meshery-extensions
+          number: ${{ inputs.pr_number }}
+          id: extension-test
+          message: ":x: Extension build failed. Tests were not run. [See build logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          append: true
+      - name: Set failure commit status
+        if: ${{ inputs.head_sha != '' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_ACCESS_TOKEN }}
+          script: |
+            const [owner, repo] = 'layer5labs/meshery-extensions'.split('/');
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: '${{ inputs.head_sha }}',
+              state: 'failure',
+              context: 'Meshery Extension E2E Tests',
+              description: 'Extension build failed — tests were not run',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
+
   tests-ui-e2e:
     needs: build-meshery-extension
     name: UI end-to-end tests
@@ -85,19 +123,37 @@ jobs:
           id: extension-test
           message: ":heavy_check_mark: Setting up test environment..."
           append: true
+      - name: Set pending commit status
+        if: ${{ inputs.head_sha != '' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_ACCESS_TOKEN }}
+          script: |
+            const [owner, repo] = 'layer5labs/meshery-extensions'.split('/');
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: '${{ inputs.head_sha }}',
+              state: 'pending',
+              context: 'Meshery Extension E2E Tests',
+              description: 'Tests are running...',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
 
       - name: Setup node
         uses: actions/setup-node@v6
         with:
           node-version: "20.x"
 
-      - name: Create k8s Kind Cluster
-        uses: helm/kind-action@v1.13.0
+      # Moved up: checkout has no dependency on Kind/Docker and can
+      # run while those slower steps proceed.
+      - name: Checkout Meshery-extensions code
+        uses: actions/checkout@v6
         with:
-          cluster_name: kind-cluster
-
-      - name: Update /etc/hosts
-        run: echo "127.0.0.1 mesherylocal.layer5.io" | sudo tee -a /etc/hosts
+          repository: layer5labs/meshery-extensions
+          path: meshery-extensions
+          ref: ${{ inputs.checkout_ref }}
+          token: ${{ secrets.GH_ACCESS_TOKEN }}
 
       - name: Set Release extensions
         run: |
@@ -105,9 +161,40 @@ jobs:
           TAG=$(jq -r '.[0].tag_name' extension_releases.json)
           echo "tag=$TAG" >> $GITHUB_ENV
 
+      - name: Update /etc/hosts
+        run: echo "127.0.0.1 mesherylocal.layer5.io" | sudo tee -a /etc/hosts
+
+      # Start the image pull in the background so it overlaps with
+      # Kind cluster creation and Playwright install (~30-60s saved).
+      - name: Pull Meshery image in background
+        run: |
+          nohup docker pull docker.io/meshery/meshery:stable-latest > /tmp/docker-pull.log 2>&1 &
+          echo $! > /tmp/docker-pull.pid
+
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.13.0
+        with:
+          cluster_name: kind-cluster
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('meshery-extensions/package-lock.json') }}
+
+      - name: Install Playwright dependencies
+        working-directory: meshery-extensions
+        run: make test-setup
+
       - name: make directories
         run: |
           mkdir -p /home/runner/.meshery/provider/Meshery/${{ env.tag }}/provider/
+
+      - name: Wait for Meshery image pull
+        run: |
+          PID=$(cat /tmp/docker-pull.pid)
+          while kill -0 "$PID" 2>/dev/null; do sleep 1; done
+          cat /tmp/docker-pull.log
 
       - name: Run backend (Docker)
         run: |
@@ -131,17 +218,13 @@ jobs:
             mkdir -p /home/appuser/.meshery/provider/Layer5/${{ env.tag }}/provider
           docker cp provider/. meshery-backend:/home/appuser/.meshery/provider/Layer5/${{ env.tag }}/provider
 
-      - name: Checkout Meshery-extensions code
-        uses: actions/checkout@v6
-        with:
-          repository: layer5labs/meshery-extensions
-          path: meshery-extensions
-          ref: ${{ inputs.checkout_ref }}
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
-
-      - name: Install Playwright dependencies
-        working-directory: meshery-extensions
-        run: make test-setup
+      # Prevents flaky test starts by waiting for the server to be healthy.
+      - name: Wait for Meshery to be ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9081/api/system/version && break
+            sleep 2
+          done
 
       - name: comment progress ready
         if: ${{ inputs.pr_number != ''  }}
@@ -153,6 +236,10 @@ jobs:
           id: extension-test
           message: ":heavy_check_mark: Test environment ready. Starting tests..."
           append: true
+
+      - name: Record test start time
+        id: timer
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
 
       - name: Run Tests
         id: run_tests
@@ -169,6 +256,13 @@ jobs:
           REMOTE_PROVIDER_USER_PASSWORD: ${{ secrets.LAYER5_CLOUD_TESTING_BOT_PASSWORD }}
           ALLURE_LABEL_project: Kanvas
           ALLURE_LABEL_type: e2e
+
+      - name: Calculate test duration
+        id: duration
+        if: ${{ always() }}
+        run: |
+          elapsed=$(( $(date +%s) - ${{ steps.timer.outputs.start }} ))
+          echo "duration=$(printf '%dm %ds' $((elapsed/60)) $((elapsed%60)))" >> "$GITHUB_OUTPUT"
 
       - name: Prepare test report
         id: test_reports
@@ -200,12 +294,13 @@ jobs:
           number: ${{ inputs.pr_number }}
           id: extension-test
           message: |
-            ### 🧪 Test Results (Preview)
+            ### Test Results
+
+            **Extension tag:** `${{ env.tag }}` | **Meshery:** `stable-latest` | **Duration:** ${{ steps.duration.outputs.duration }}
 
             ${{ steps.test_reports.outputs.result }}
 
-            🔗 **Full report:**  
-            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **[Full report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})** | **[Download Playwright traces & screenshots](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)**
           append: true
 
       - name: Checkout QA
@@ -269,3 +364,23 @@ jobs:
           id: extension-test
           message: ":heavy_check_mark: Meshery Extension tests completed."
           append: true
+      - name: Set final commit status
+        if: ${{ always() && inputs.head_sha != '' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_ACCESS_TOKEN }}
+          script: |
+            const [owner, repo] = 'layer5labs/meshery-extensions'.split('/');
+            const outcome = '${{ steps.run_tests.outcome }}';
+            const stateMap = { success: 'success', failure: 'failure', cancelled: 'error', skipped: 'error' };
+            const state = stateMap[outcome] || 'error';
+            const descMap = { success: 'All tests passed', failure: 'One or more tests failed', cancelled: 'Run was cancelled', skipped: 'Tests were skipped' };
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: '${{ inputs.head_sha }}',
+              state,
+              context: 'Meshery Extension E2E Tests',
+              description: descMap[outcome] || 'Unexpected test outcome',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
