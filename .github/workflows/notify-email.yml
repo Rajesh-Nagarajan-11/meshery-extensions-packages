@@ -30,7 +30,7 @@ jobs:
     steps:
       - name: grab release notes
         run: |
-          curl https://raw.githubusercontent.com/meshery/meshery/master/docs/_releases/${{inputs.release-tag}}.md | sed -e '1,5d' > meshery-release-notification.html
+          curl https://raw.githubusercontent.com/meshery/meshery/master/docs/content/en/project/releases/${{inputs.release-tag}}.md | sed -e '1,5d' > meshery-release-notification.html
           echo "|
           
           ## 🛝 Access ${{inputs.release-tag}} in the [Meshery Playground](https://playground.meshery.io) 
